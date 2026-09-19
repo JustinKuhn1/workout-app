@@ -87,17 +87,13 @@ module.exports = async function handler(req, res) {
 
     const data = await response.json();
 
-    // CHANGED: the reply is { interaction: { output_text, steps } }. The old code read data.steps,
-    // which is undefined, so .find() threw a TypeError and the browser just saw a 500.
-    const interaction = data.interaction || {};
-    let text = interaction.output_text;
-
-    // Fallback if output_text is absent: the first step can be a "thought", so find model_output.
-    if (!text && Array.isArray(interaction.steps)) {
-      const outputStep = interaction.steps.find((step) => step.type === "model_output");
-      const part = outputStep && (outputStep.content || []).find((item) => item.type === "text");
-      text = part && part.text;
-    }
+    // CHANGED: the REST reply is the interaction itself: { id, status, steps: [...] }, so read data.steps.
+    // (output_text only exists in Google's SDKs, not in the raw REST reply.)
+    // The first step can be a "thought", so look for the model_output step.
+    const outputStep = (data.steps || []).find((step) => step.type === "model_output");
+    const part = outputStep && (outputStep.content || []).find((item) => item.type === "text");
+    const text = part && part.text;
+    // CHANGED: throw a readable error (with the start of the reply) instead of a TypeError if the shape is unexpected.
     if (!text) throw new Error("No output text in the Gemini reply: " + JSON.stringify(data).slice(0, 500));
 
     const plan = JSON.parse(text);
