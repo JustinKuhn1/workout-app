@@ -32,38 +32,55 @@
   <main class="dash">
     <div class="dash-head">
       <h1>Your weekly plan</h1>
-      <p>Today is highlighted. Log each session below to track your progress.</p>
+      <!-- CHANGED: "below" no longer fits now that logging lives in its own tab. -->
+      <p>Today is highlighted. Use the Log a workout tab to track your progress.</p>
     </div>
 
     <p class="error" id="error" hidden></p>
 
-    <section class="card summary">
-      <div class="summary-main">
-        <h2>Overview</h2>
-        <p id="summary"></p>
-      </div>
-      <div class="summary-tips">
-        <h3>Tips</h3>
+    <!-- CHANGED: tabs. Styled through role / aria-selected so no new classes or ids are needed.
+         Each tab and its panel share a data-tab value, and the script shows one panel at a time. -->
+    <div role="tablist">
+      <button type="button" role="tab" data-tab="plan" aria-selected="true">Weekly plan</button>
+      <button type="button" role="tab" data-tab="tips" aria-selected="false" tabindex="-1">Tips</button>
+      <button type="button" role="tab" data-tab="log" aria-selected="false" tabindex="-1">Log a workout</button>
+      <button type="button" role="tab" data-tab="recent" aria-selected="false" tabindex="-1">Recent workouts</button>
+    </div>
+
+    <div role="tabpanel" data-tab="plan">
+      <section class="card summary">
+        <div class="summary-main">
+          <h2>Overview</h2>
+          <p id="summary"></p>
+        </div>
+      </section>
+
+      <section class="days-section">
+        <div class="section-head">
+          <h2>This week</h2>
+        </div>
+        <div class="days" id="days"></div>
+      </section>
+    </div>
+
+    <!-- CHANGED: tips moved out of the overview card into their own tab. -->
+    <div role="tabpanel" data-tab="tips" hidden>
+      <section class="card">
+        <h2>Tips</h2>
         <ul id="tips"></ul>
-      </div>
-    </section>
+      </section>
+    </div>
 
-    <section class="days-section">
-      <div class="section-head">
-        <h2>This week</h2>
-      </div>
-      <div class="days" id="days"></div>
-    </section>
-
-    <div class="split">
+    <!-- CHANGED: the log form moved into its own tab (the .split two-column wrapper is gone). -->
+    <div role="tabpanel" data-tab="log" hidden>
       <section class="card">
         <h2>Log a workout</h2>
         <form id="log-form">
           <div class="field">
             <label for="exercise">Exercise</label>
-            <!-- The datalist suggests exercises from the plan, but any text is allowed. -->
-            <input type="text" id="exercise" name="exercise" list="exercise-list" required />
-            <datalist id="exercise-list"></datalist>
+            <!-- CHANGED: the datalist is replaced by the picker dialog at the bottom of the page.
+                 autocomplete="off" stops the browser's own dropdown from showing on top of it. -->
+            <input type="text" id="exercise" name="exercise" autocomplete="off" required />
           </div>
           <div class="field">
             <label for="date">Date</label>
@@ -90,13 +107,28 @@
           <button type="submit" class="btn">Add to log</button>
         </form>
       </section>
+    </div>
 
+    <!-- CHANGED: recent logs moved into their own tab; heading renamed to match the tab. -->
+    <div role="tabpanel" data-tab="recent" hidden>
       <section class="card">
-        <h2>Recent logs</h2>
+        <h2>Recent workouts</h2>
         <div id="logs"></div>
       </section>
     </div>
   </main>
+
+  <!-- CHANGED: exercise picker. It opens when the user clicks or starts typing in the Exercise box.
+       It reuses the .card, .btn and input styles, so no new classes or ids are needed.
+       closedby="any" lets a click outside close it in browsers that support it; Esc and Cancel work everywhere. -->
+  <dialog class="card" aria-label="Choose an exercise" closedby="any">
+    <h2>Choose an exercise</h2>
+    <input type="text" placeholder="Search exercises..." aria-label="Search exercises" autocomplete="off" />
+    <ul></ul>
+    <form method="dialog">
+      <button class="btn btn-secondary">Cancel</button>
+    </form>
+  </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
@@ -106,6 +138,7 @@
     const logForm = document.getElementById("log-form");
     let userId;
     let answers; // the saved questionnaire answers, reused by "Regenerate plan"
+    let exerciseNames = []; // CHANGED: every exercise in the plan, listed by the exercise picker
 
     // ---------- Page setup ----------
 
@@ -157,20 +190,16 @@
       document.getElementById("summary").textContent = plan.summary;
 
       const tips = (plan.tips || []).map((tip) => el("li", "", tip));
+      // CHANGED: Tips is its own tab now, so say so when the plan has none (the empty card used to just hide).
+      if (tips.length === 0) tips.push(el("li", "muted", "No tips for this plan."));
       document.getElementById("tips").replaceChildren(...tips);
 
       const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
       const days = plan.days.map((day) => renderDay(day, day.day.toLowerCase() === today.toLowerCase()));
       document.getElementById("days").replaceChildren(...days);
 
-      // Suggest every exercise in the plan in the log form.
-      const names = new Set(plan.days.flatMap((day) => day.exercises.map((exercise) => exercise.name)));
-      const options = [...names].map((name) => {
-        const option = el("option");
-        option.value = name;
-        return option;
-      });
-      document.getElementById("exercise-list").replaceChildren(...options);
+      // CHANGED: this used to fill a datalist. Now it just remembers the names for the exercise picker.
+      exerciseNames = [...new Set(plan.days.flatMap((day) => day.exercises.map((exercise) => exercise.name)))];
     }
 
     function renderDay(day, isToday) {
@@ -203,6 +232,88 @@
       button.textContent = "Regenerate plan";
     });
 
+    // ---------- Tabs ----------
+    // CHANGED: new section. Shows one tab's panel at a time.
+
+    const tabs = [...document.querySelectorAll('[role="tab"]')];
+    const panels = [...document.querySelectorAll('[role="tabpanel"]')];
+
+    function showTab(name) {
+      for (const tab of tabs) {
+        const selected = tab.dataset.tab === name;
+        tab.setAttribute("aria-selected", selected);
+        tab.tabIndex = selected ? 0 : -1; // only the open tab is in the Tab key order
+      }
+      for (const panel of panels) panel.hidden = panel.dataset.tab !== name;
+    }
+
+    for (const tab of tabs) {
+      tab.addEventListener("click", () => showTab(tab.dataset.tab));
+
+      // Left / right arrows move between tabs, wrapping around at the ends.
+      tab.addEventListener("keydown", (event) => {
+        const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+        if (!step) return;
+        const next = tabs[(tabs.indexOf(tab) + step + tabs.length) % tabs.length];
+        showTab(next.dataset.tab);
+        next.focus();
+      });
+    }
+
+    // ---------- Exercise picker ----------
+    // CHANGED: new section. A dialog with a search bar that opens when the user clicks or types in the Exercise box.
+
+    const exerciseInput = document.getElementById("exercise");
+    const exerciseDialog = document.querySelector("dialog");
+    const exerciseSearch = exerciseDialog.querySelector("input");
+    const exerciseChoices = exerciseDialog.querySelector("ul");
+
+    // Clicking starts with the full list. Typing carries what was typed into the search bar.
+    exerciseInput.addEventListener("click", () => openExercisePicker(""));
+    exerciseInput.addEventListener("input", () => openExercisePicker(exerciseInput.value));
+
+    exerciseSearch.addEventListener("input", showExerciseChoices);
+    exerciseSearch.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      exerciseChoices.querySelector("button")?.click(); // Enter picks the top result
+    });
+
+    function openExercisePicker(search) {
+      exerciseSearch.value = search;
+      showExerciseChoices();
+      exerciseDialog.showModal(); // focuses the search bar; closing returns focus to the Exercise box
+    }
+
+    function showExerciseChoices() {
+      const typed = exerciseSearch.value.trim();
+      const query = typed.toLowerCase();
+      const rows = exerciseNames
+        .filter((name) => name.toLowerCase().includes(query))
+        .map((name) => exerciseChoice(name, name));
+
+      // Any exercise is allowed, not just the ones in the plan, so offer what was typed too.
+      if (typed && !exerciseNames.some((name) => name.toLowerCase() === query)) {
+        rows.push(exerciseChoice(`Use "${typed}"`, typed));
+      }
+      if (rows.length === 0) rows.push(el("li", "muted", "No exercises in your plan yet. Type a name to add your own."));
+      exerciseChoices.replaceChildren(...rows);
+    }
+
+    // One row in the list. Clicking it fills in the Exercise box and closes the picker.
+    function exerciseChoice(label, value) {
+      const button = el("button", "btn btn-secondary", label);
+      button.type = "button";
+      button.addEventListener("click", () => {
+        exerciseInput.value = value;
+        exerciseDialog.close();
+      });
+
+      const item = el("li");
+      item.append(button);
+      return item;
+    }
+
     // ---------- Workout log ----------
 
     logForm.addEventListener("submit", (event) => {
@@ -223,6 +334,8 @@
 
         logForm.reset();
         await showLogs();
+        // CHANGED: the list is on another tab now, so jump to it. Otherwise saving would look like nothing happened.
+        showTab("recent");
       }, "Could not save your workout. Please try again.");
     });
 

@@ -618,11 +618,11 @@ input[type="checkbox"]:focus-visible {
 }
 
 /* Intro blocks rise in one after another on first load */
+/* CHANGED: removed .split > .card. The form and logs are on their own tabs now; see the tab panel rule below. */
 .dash-head,
 .dash > .error,
 .summary,
-.section-head,
-.split > .card {
+.section-head {
     animation: rise 0.6s var(--ease) both;
     animation-delay: var(--d, 0s);
 }
@@ -630,8 +630,6 @@ input[type="checkbox"]:focus-visible {
 .dash-head { --d: 0.05s; }
 .summary { --d: 0.15s; }
 .section-head { --d: 0.25s; }
-.split > .card:nth-child(1) { --d: 0.35s; }
-.split > .card:nth-child(2) { --d: 0.45s; }
 
 .dash-head h1 {
     margin: 0 0 6px;
@@ -645,19 +643,9 @@ input[type="checkbox"]:focus-visible {
 }
 
 /* ---------- Plan overview ---------- */
+/* CHANGED: tips moved to their own tab, so the two-column grid and the :has(#tips:empty) rules are gone. */
 .summary {
     padding: 28px 32px;
-    display: grid;
-    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-    gap: 32px;
-}
-
-.summary:has(#tips:empty) {
-    grid-template-columns: 1fr;
-}
-
-.summary:has(#tips:empty) .summary-tips {
-    display: none;
 }
 
 .summary-main {
@@ -676,18 +664,6 @@ input[type="checkbox"]:focus-visible {
 #summary:not(:empty),
 #tips li {
     animation: fade-in 0.6s ease both;
-}
-
-.summary-tips {
-    padding-left: 32px;
-    border-left: 1px solid var(--line);
-}
-
-.summary-tips h3 {
-    margin: 0 0 12px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--muted);
 }
 
 #tips {
@@ -833,13 +809,7 @@ input[type="checkbox"]:focus-visible {
 }
 
 /* ---------- Log form + recent logs ---------- */
-.split {
-    display: grid;
-    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-    gap: 24px;
-    align-items: start;
-}
-
+/* CHANGED: removed .split (the old two-column layout). Each now sits on its own tab. */
 #log-form {
     display: flex;
     flex-direction: column;
@@ -889,26 +859,105 @@ input[type="checkbox"]:focus-visible {
 }
 
 /* ==========================================================
-   Responsive
+   Dashboard: tabs
+   CHANGED: new section. Styled by role / aria-selected, so no new classes or ids.
    ========================================================== */
-@media (max-width: 900px) {
-    .split {
-        grid-template-columns: 1fr;
-    }
-
-    .summary {
-        grid-template-columns: 1fr;
-        gap: 24px;
-    }
-
-    .summary-tips {
-        padding-left: 0;
-        padding-top: 24px;
-        border-left: 0;
-        border-top: 1px solid var(--line);
-    }
+[role="tablist"] {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+    scrollbar-width: none;
 }
 
+/* Undo the green filled look every <button> gets, and draw an underline instead */
+[role="tab"] {
+    flex: none;
+    margin-bottom: -1px;
+    padding: 0 16px;
+    background: transparent;
+    color: var(--muted);
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+}
+
+[role="tab"]:hover:not(:disabled) {
+    background: transparent;
+    color: var(--text-strong);
+}
+
+[role="tab"][aria-selected="true"],
+[role="tab"][aria-selected="true"]:hover:not(:disabled) {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+/* Only the open tab's panel is shown (the others have [hidden]); a panel stacks its blocks like .dash does */
+[role="tabpanel"] {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+/* The form and list cards stay readable instead of stretching the full page width */
+.dash [role="tabpanel"] > .card:not(.summary) {
+    max-width: 720px;
+    animation: rise 0.45s var(--ease) both;
+}
+
+/* ==========================================================
+   Dashboard: exercise picker
+   CHANGED: new section. The <dialog> also has class="card", which supplies its
+   surface, border and input styling; these rules only handle the dialog-specific bits.
+   ========================================================== */
+dialog.card {
+    width: min(480px, calc(100% - 32px));
+    max-height: min(640px, calc(100vh - 64px));
+    padding: 24px;
+    overflow: hidden; /* the list inside scrolls instead */
+    border-color: var(--line-strong);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* .card sets display:flex, which would otherwise keep a closed dialog on screen */
+dialog.card:not([open]) {
+    display: none;
+}
+
+dialog.card[open] {
+    animation: rise 0.25s var(--ease) both;
+}
+
+dialog::backdrop {
+    background: rgba(6, 12, 9, 0.72);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+}
+
+dialog ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* Result rows are .btn buttons: left-aligned, and no extra top margin inside the list */
+dialog li .btn {
+    margin-top: 0;
+    text-align: left;
+}
+
+/* ==========================================================
+   Responsive
+   ========================================================== */
+/* CHANGED: removed the 900px block. It only re-stacked .split and the tips column, which no longer exist. */
 @media (max-width: 760px) {
     .page {
         padding: 40px 12px 72px;
