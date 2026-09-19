@@ -78,12 +78,27 @@ module.exports = async function handler(req, res) {
         response_format: { type: "text", mime_type: "application/json", schema: PLAN_SCHEMA },
       }),
     });
-    if (!response.ok) throw new Error("Gemini returned status " + response.status);
+    // CHANGED: include Gemini's own error body in the message. The status number alone doesn't
+    // say whether it was a missing key, a bad model name or a quota limit.
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error("Gemini returned status " + response.status + ": " + detail.slice(0, 500));
+    }
 
-    // The first step can be a "thought", so look for the model_output step.
     const data = await response.json();
-    const outputStep = data.steps.find((step) => step.type === "model_output");
-    const text = outputStep.content.find((part) => part.type === "text").text;
+
+    // CHANGED: the reply is { interaction: { output_text, steps } }. The old code read data.steps,
+    // which is undefined, so .find() threw a TypeError and the browser just saw a 500.
+    const interaction = data.interaction || {};
+    let text = interaction.output_text;
+
+    // Fallback if output_text is absent: the first step can be a "thought", so find model_output.
+    if (!text && Array.isArray(interaction.steps)) {
+      const outputStep = interaction.steps.find((step) => step.type === "model_output");
+      const part = outputStep && (outputStep.content || []).find((item) => item.type === "text");
+      text = part && part.text;
+    }
+    if (!text) throw new Error("No output text in the Gemini reply: " + JSON.stringify(data).slice(0, 500));
 
     const plan = JSON.parse(text);
     if (!Array.isArray(plan.days) || plan.days.length === 0) throw new Error("Plan has no days");
