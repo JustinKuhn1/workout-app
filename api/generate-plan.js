@@ -1,6 +1,7 @@
 // Vercel serverless function: turns questionnaire answers into a weekly workout plan using Gemini.
 
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
+// CHANGED: use Google's official SDK, as the Gemini quickstart recommends, instead of a hand-written fetch.
+const { GoogleGenAI } = require("@google/genai");
 const REQUIRED_FIELDS = ["goal", "experience", "daysPerWeek", "sessionMinutes", "equipment"];
 
 // The JSON shape Gemini must reply with.
@@ -66,43 +67,26 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const response = await fetch(GEMINI_URL, {
-      method: "POST",
-      headers: {
-        "x-goog-api-key": process.env.GEMINI_API_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-3.8-flash",
-        input: buildPrompt(answers),
-        response_format: { type: "text", mime_type: "application/json", schema: PLAN_SCHEMA },
-      }),
+    // CHANGED: the SDK sends the same request as before (same model, input and response_format),
+    // and interaction.output_text gives the reply text directly, so we no longer parse the reply's steps by hand.
+    // The client is created inside the try so a missing API key is reported instead of crashing the function.
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const interaction = await ai.interactions.create({
+      model: "gemini-3.8-flash",
+      input: buildPrompt(answers),
+      response_format: { type: "text", mime_type: "application/json", schema: PLAN_SCHEMA },
     });
-    // CHANGED: include Gemini's own error body in the message. The status number alone doesn't
-    // say whether it was a missing key, a bad model name or a quota limit.
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error("Gemini returned status " + response.status + ": " + detail.slice(0, 500));
-    }
 
-    const data = await response.json();
+    if (!interaction.output_text) throw new Error("Gemini returned no text (status: " + interaction.status + ")");
 
-    // CHANGED: the REST reply is the interaction itself: { id, status, steps: [...] }, so read data.steps.
-    // (output_text only exists in Google's SDKs, not in the raw REST reply.)
-    // The first step can be a "thought", so look for the model_output step.
-    const outputStep = (data.steps || []).find((step) => step.type === "model_output");
-    const part = outputStep && (outputStep.content || []).find((item) => item.type === "text");
-    const text = part && part.text;
-    // CHANGED: throw a readable error (with the start of the reply) instead of a TypeError if the shape is unexpected.
-    if (!text) throw new Error("No output text in the Gemini reply: " + JSON.stringify(data).slice(0, 500));
-
-    const plan = JSON.parse(text);
+    const plan = JSON.parse(interaction.output_text);
     if (!Array.isArray(plan.days) || plan.days.length === 0) throw new Error("Plan has no days");
 
     res.status(200).json(plan);
   } catch (err) {
-    // Log the real reason on the server only; the browser gets a generic message.
     console.error("generate-plan failed:", err.message);
-    res.status(500).json({ error: "Could not generate a plan. Please try again." });
+    // CHANGED: also send the real reason to the browser as "detail" so it shows in the console (F12),
+    // instead of only in the Vercel logs. Remove "detail" once everything works if you'd rather not expose it.
+    res.status(500).json({ error: "Could not generate a plan. Please try again.", detail: err.message });
   }
 };

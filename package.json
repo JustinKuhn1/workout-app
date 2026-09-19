@@ -4,5 +4,8 @@
   "version": "1.0.0",
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "@google/genai": "^2.23.0"
   }
 }

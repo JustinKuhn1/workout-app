@@ -38,7 +38,11 @@ async function generateAndSavePlan(userId, answers) {
         body: JSON.stringify(answers),
     });
 
-    if (!response.ok) throw new Error("The plan API returned " + response.status);
+    // CHANGED: include the API's "detail" in the error, so the console shows WHY it failed, not just "500".
+    if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error("The plan API returned " + response.status + (body.detail ? ": " + body.detail : ""));
+    }
 
     // CHANGED: "plan" was used in the upsert below but never defined, so this threw a ReferenceError
     // and nothing was ever saved to the profiles table.

@@ -1,0 +1,4 @@
+# CHANGED: added so installed packages, local env files (API keys) and Vercel's local folder are never committed.
+node_modules
+.env*.local
+.vercel
