@@ -1,12 +1,76 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Kinetiq Quest</title>
+        <!-- Link to the CSS file -->
         <link rel="stylesheet" href="styles.css">
     </head>
     <body>
-        <h1>Log in here </h1>
-        <p>If you already have an account, please <a href="signin.html">sign in</a>.</p>
-        <p>If you don't have an account, please <a href="signup.html">sign up</a>.</p>
+        <main class="page">
+            <!-- Title -->
+            <h1>Welcome to Kinetiq Quest!</h1>
+
+            <!-- Login -->
+            <section class="login-section">
+                <!-- Top Text -->
+                <div class="login-label">
+                    Log in here to start your fitness journey!
+                </div>
+
+                <!-- Login Boxes -->
+                <form class="login-card" id="loginForm">
+                    <!-- Username -->
+                    <input
+                        class="field"
+                        type="text"
+                        id="username"
+                        name="username"
+                        placeholder="username:"
+                        autocomplete="username"
+                        required
+                    >
+                    <!-- Email -->
+                    <input
+                        class="field"
+                        type="email"
+                        id="email"
+                        name="email"
+                        placeholder="email:"
+                        autocomplete="email"
+                        required
+                    >
+                    <!-- Password -->
+                    <input
+                        class="field"
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="password:"
+                        autocomplete="current-password"
+                        required
+                    >
+                    <!-- Login Button -->
+                    <button type="submit">
+                        Log In
+                    </button>
+                    <div
+                        class="message"
+                        id = "message"
+                        aria-live="polite">
+                    </div>
+                </form>
+                <!-- Create Account(Text) -->
+                <a href="#" class="create-account" id="createAccount">
+                    Create an account
+                </a>
+            </section>
+            <!-- Home Button -->
+            <a class="home" href="#">
+                Home
+            </a>
+        </main>
+        
     </body>
 </html>
