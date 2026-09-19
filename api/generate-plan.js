@@ -67,12 +67,9 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // CHANGED: the SDK sends the same request as before (same model, input and response_format),
-    // and interaction.output_text gives the reply text directly, so we no longer parse the reply's steps by hand.
-    // The client is created inside the try so a missing API key is reported instead of crashing the function.
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const interaction = await ai.interactions.create({
-      model: "gemini-3.8-flash",
+      model: "gemini-3.5-flash-lite",
       input: buildPrompt(answers),
       response_format: { type: "text", mime_type: "application/json", schema: PLAN_SCHEMA },
     });
