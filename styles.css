@@ -31,22 +31,26 @@ h1{
     letter-spacing: 0.02em;
 }
 /* Login */
-.content{
+.login-section{
     min-height: 560px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 80px;
+    width: 100%;
 }
 .login-label{
-    font-size: 1.35rem;
-    white-space: nowrap;
+    font-size: 1.5rem;
+    text-align: center;
+    margin-bottom: 25px;
 }
 .login-card{
-    width: min(360px, 100%);
+    width: 360px;
+    max-width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    align-items: center;
+    gap: 18px;
 }
 /* Boxes with input */
 .field{
@@ -54,8 +58,10 @@ h1{
     height: 58px;
     border: 2px solid #222;
     border-radius: 5px;
+    background: #fffdf8;
     padding: 0 16px;
-    font: 1.0rem Georgia, "Times New Roman", serif;
+    font: 1.05rem Georgia, "Times New Roman", serif;
+    outline: none;
 }
 /* Input effects */
 .field:focus{
@@ -75,13 +81,14 @@ h1{
 button{
     border: 2px solid #222;
     border-radius: 5px;
-    color: white;
+    color: rgb(117, 96, 96);
     padding: 14px 34px;
     font: 1.05rem Georgia, "Times New Roman", serif;
     cursor: pointer;
 }
 button:hover{
     background: #444;
+    color:#f5f1e8;
 }
 /* Account creation */
 .create{
