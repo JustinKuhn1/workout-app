@@ -1,36 +1,119 @@
-*{
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap");
+
+/* ==========================================================
+   Design tokens
+   ========================================================== */
+:root {
+    --bg: #0f1c15;
+    --surface: #16271e;
+    --surface-2: #1b3226;
+    --line: rgba(255, 255, 255, 0.08);
+    --line-strong: rgba(255, 255, 255, 0.18);
+    --text: #b6c6bc;
+    --text-strong: #eef4f0;
+    --muted: #869c90;
+
+    --accent: #7be0a6;
+    --accent-hover: #97e8b9;
+    --accent-soft: rgba(123, 224, 166, 0.12);
+    --accent-line: rgba(123, 224, 166, 0.45);
+    --accent-ink: #0b1a11;
+
+    --danger: #f4948b;
+    --danger-soft: rgba(244, 148, 139, 0.12);
+    --danger-line: rgba(244, 148, 139, 0.4);
+
+    --radius: 8px;
+    --radius-lg: 12px;
+    --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+    color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
     box-sizing: border-box;
 }
-body{
+
+[hidden] {
+    display: none !important;
+}
+
+body {
     margin: 0;
     min-height: 100vh;
-    background: #1b3227;
-    color: #A3B1A8;
-    font-family: Georgia, "Times New Roman", serif;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-/* Main Page */
-.page{
+
+body.dashboard {
+    display: block;
+}
+
+/* ==========================================================
+   First-load animations
+   (uses the `translate` property so it never fights a
+   `transform` set elsewhere)
+   ========================================================== */
+@keyframes rise {
+    from { opacity: 0; translate: 0 14px; }
+    to   { opacity: 1; translate: 0 0; }
+}
+
+@keyframes drop {
+    from { opacity: 0; translate: 0 -10px; }
+    to   { opacity: 1; translate: 0 0; }
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* ==========================================================
+   Main page (login + questionnaire)
+   ========================================================== */
+.page {
     width: 100%;
     min-height: 100vh;
-    background: #1b3227;
     position: relative;
-    padding: 58px 70px 80px;
+    padding: 72px 24px 88px;
     display: flex;
     flex-direction: column;
+    align-items: center;
 }
-/* Title */
-h1{
-    margin: 0;
+
+.page > * {
+    animation: rise 0.6s var(--ease) both;
+}
+
+.page > :nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+h1 {
+    margin: 0 0 32px;
     text-align: center;
-    font-size: clamp(2.3rem, 5vw, 4.5rem);
-    font-weight: 400;
-    letter-spacing: 0.02em;
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
 }
-/* Login */
-.login-section{
+
+/* ==========================================================
+   Login
+   ========================================================== */
+.login-section {
     min-height: 560px;
     display: flex;
     flex-direction: column;
@@ -38,106 +121,862 @@ h1{
     justify-content: center;
     width: 100%;
 }
-.login-label{
-    font-size: 1.5rem;
+
+.login-label {
+    font-size: 1.15rem;
+    font-weight: 500;
+    color: var(--text-strong);
     text-align: center;
-    margin-bottom: 25px;
+    margin-bottom: 24px;
 }
-.login-card{
+
+.login-card {
     width: 360px;
     max-width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 18px;
+    gap: 14px;
 }
-/* Boxes with input */
-.field{
+
+/* On the login page .field is the input itself */
+.field {
     width: 100%;
-    height: 58px;
-    border: 2px solid #222;
-    border-radius: 5px;
-    background: #818858;
-    padding: 0 16px;
-    font: 1.05rem Georgia, "Times New Roman", serif;
+    height: 46px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text-strong);
+    padding: 0 14px;
+    font: inherit;
+    font-size: 0.95rem;
     outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-/* Input effects */
-.field:focus{
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
+
+.field:hover {
+    border-color: var(--line-strong);
 }
-/* Placeholder text */
-.field::placeholder{
-    color: #332f2f;
+
+.field:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.field::placeholder {
+    color: var(--muted);
     opacity: 1;
 }
-/* Buttons */
-.action{
+
+.action {
     display: flex;
     justify-content: center;
     margin-top: 2px;
 }
-button{
-    border: 2px solid #222;
-    border-radius: 5px;
-    color: #332f2f;
-    background: #dfe4be;
-    padding: 14px 34px;
-    font: 1.05rem Georgia, "Times New Roman", serif;
-    cursor: pointer;
-}
-button:hover{
-    background: #aaae92;
-    color:#332f2f;
-}
-/* Account creation */
-.create{
+
+.create {
     width: min(360px, 100%);
     margin-top: 4px;
     text-align: center;
-    font-size: 1.05rem;
-    line-height: 1.5;
+    font-size: 0.95rem;
+    color: var(--muted);
 }
-.create-account{
-    color: #c6cbba;
-    font-weight: 700;
+
+.create-account {
+    color: var(--accent);
+    font-weight: 500;
     text-decoration: none;
 }
-/* Link to home */
-.home{
+
+.create-account:hover {
+    text-decoration: underline;
+}
+
+.home {
     position: absolute;
     left: 50%;
     bottom: 28px;
     transform: translateX(-50%);
-    color: #c6cbba;
-    font-size: 1.15rem;
+    color: var(--muted);
+    font-size: 0.95rem;
     text-decoration: none;
+    transition: color 0.15s ease;
 }
-/* Login Message */
-.message{
+
+.home:hover {
+    color: var(--text-strong);
+}
+
+.message {
     min-height: 24px;
     text-align: center;
-    font-size: 0.95rem;
-    margin-top: -8px;
+    font-size: 0.9rem;
+    margin-top: -6px;
 }
-/* Mobile if I get to it */
+
+/* ==========================================================
+   Buttons
+   ========================================================== */
+button {
+    min-height: 44px;
+    padding: 0 22px;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+button:disabled {
+    opacity: 0.55;
+    cursor: progress;
+}
+
+button:focus-visible,
+a:focus-visible,
+input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.btn {
+    width: 100%;
+    min-height: 46px;
+    margin-top: 6px;
+}
+
+.btn-small {
+    width: auto;
+    min-height: 36px;
+    margin-top: 0;
+    padding: 0 14px;
+    font-size: 0.9rem;
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--text-strong);
+    border-color: var(--line-strong);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--muted);
+}
+
+.btn-ghost:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-strong);
+}
+
+.btn-danger {
+    background: transparent;
+    color: var(--danger);
+    border-color: var(--danger-line);
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: var(--danger-soft);
+    border-color: var(--danger);
+}
+
+/* ==========================================================
+   Error message
+   ========================================================== */
+.error {
+    margin: 0;
+    padding: 12px 14px;
+    background: var(--danger-soft);
+    border: 1px solid var(--danger-line);
+    border-radius: var(--radius);
+    color: var(--danger);
+    font-size: 0.92rem;
+    line-height: 1.45;
+}
+
+/* ==========================================================
+   Cards and form controls
+   (scoped to .card so the login page's input.field is untouched)
+   ========================================================== */
+.card {
+    width: 100%;
+    max-width: 640px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.card h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: var(--text-strong);
+}
+
+/* Inside a card, .field is a wrapper: undo the login input styling */
+.card .field,
+.card .field:hover,
+.card .field:focus,
+.card .field:focus-within {
+    width: 100%;
+    height: auto;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.card label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-strong);
+}
+
+.card input[type="number"],
+.card input[type="text"],
+.card input[type="date"],
+.card select,
+.card textarea {
+    width: 100%;
+    background-color: var(--bg);
+    color: var(--text-strong);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0 12px;
+    font: inherit;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card input[type="number"],
+.card input[type="text"],
+.card input[type="date"],
+.card select {
+    height: 44px;
+}
+
+.card input[type="number"]:hover,
+.card input[type="text"]:hover,
+.card input[type="date"]:hover,
+.card select:hover,
+.card textarea:hover {
+    border-color: var(--line-strong);
+}
+
+.card input[type="number"]:focus,
+.card input[type="text"]:focus,
+.card input[type="date"]:focus,
+.card select:focus,
+.card textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.card input::placeholder,
+.card textarea::placeholder {
+    color: var(--muted);
+    opacity: 0.85;
+}
+
+.card textarea {
+    padding: 10px 12px;
+    min-height: 92px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+/* Native date box: consistent across browsers */
+.card input[type="date"] {
+    appearance: none;
+    -webkit-appearance: none;
+    min-height: 44px;
+}
+
+.card input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.8;
+}
+
+/* Select with a custom arrow */
+.card select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 40px;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%23869c90' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+}
+
+.card select:invalid {
+    color: var(--muted);
+}
+
+.card select option {
+    background: var(--surface);
+    color: var(--text-strong);
+}
+
+/* No number spinners */
+.card input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.card input[type="number"]::-webkit-outer-spin-button,
+.card input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Equipment checkboxes as selectable chips */
+.card .checks {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.card .checks > label:first-child {
+    grid-column: 1 / -1;
+    margin-bottom: -3px;
+}
+
+.card .checks label:not(:first-child) {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    font-weight: 400;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.card .checks label:not(:first-child):hover {
+    border-color: var(--line-strong);
+}
+
+.card .checks label:not(:first-child):has(input:checked) {
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
+    color: var(--text-strong);
+}
+
+.card .checks input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 5px;
+    background: transparent;
+    display: grid;
+    place-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.card .checks input[type="checkbox"]::after {
+    content: "";
+    width: 9px;
+    height: 5px;
+    border-left: 2px solid var(--accent-ink);
+    border-bottom: 2px solid var(--accent-ink);
+    transform: translateY(-1px) rotate(-45deg) scale(0);
+    transition: transform 0.12s ease;
+}
+
+.card .checks input[type="checkbox"]:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.card .checks input[type="checkbox"]:checked::after {
+    transform: translateY(-1px) rotate(-45deg) scale(1);
+}
+
+/* Age / height / weight */
+.card .row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.card .row .field {
+    min-width: 0;
+}
+
+.card .row.row-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+/* ==========================================================
+   Dashboard: top bar
+   ========================================================== */
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(15, 28, 21, 0.82);
+    -webkit-backdrop-filter: saturate(140%) blur(12px);
+    backdrop-filter: saturate(140%) blur(12px);
+    border-bottom: 1px solid var(--line);
+    animation: drop 0.45s var(--ease) both;
+}
+
+.topbar-inner {
+    max-width: 1120px;
+    height: 64px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-strong);
+}
+
+.brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    display: grid;
+    place-items: center;
+}
+
+.brand-mark svg {
+    width: 18px;
+    height: 18px;
+}
+
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ==========================================================
+   Dashboard: page body
+   ========================================================== */
+.dash {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 40px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.dash .card {
+    max-width: none;
+}
+
+/* Intro blocks rise in one after another on first load */
+.dash-head,
+.dash > .error,
+.summary,
+.section-head,
+.split > .card {
+    animation: rise 0.6s var(--ease) both;
+    animation-delay: var(--d, 0s);
+}
+
+.dash-head { --d: 0.05s; }
+.summary { --d: 0.15s; }
+.section-head { --d: 0.25s; }
+.split > .card:nth-child(1) { --d: 0.35s; }
+.split > .card:nth-child(2) { --d: 0.45s; }
+
+.dash-head h1 {
+    margin: 0 0 6px;
+    text-align: left;
+    font-size: clamp(1.6rem, 3.5vw, 2rem);
+}
+
+.dash-head p {
+    margin: 0;
+    color: var(--muted);
+}
+
+/* ---------- Plan overview ---------- */
+.summary {
+    padding: 28px 32px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    gap: 32px;
+}
+
+.summary:has(#tips:empty) {
+    grid-template-columns: 1fr;
+}
+
+.summary:has(#tips:empty) .summary-tips {
+    display: none;
+}
+
+.summary-main {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#summary {
+    margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.65;
+    color: var(--text-strong);
+}
+
+#summary:not(:empty),
+#tips li {
+    animation: fade-in 0.6s ease both;
+}
+
+.summary-tips {
+    padding-left: 32px;
+    border-left: 1px solid var(--line);
+}
+
+.summary-tips h3 {
+    margin: 0 0 12px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+#tips {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 10px;
+}
+
+#tips li {
+    position: relative;
+    padding-left: 22px;
+    line-height: 1.55;
+}
+
+#tips li::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 0.62em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+#tips li:nth-child(2) { animation-delay: 0.08s; }
+#tips li:nth-child(3) { animation-delay: 0.16s; }
+#tips li:nth-child(4) { animation-delay: 0.24s; }
+
+/* ---------- Weekly plan ---------- */
+.days-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.section-head h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-strong);
+}
+
+.days {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+    gap: 16px;
+}
+
+.day {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    animation: rise 0.55s var(--ease) both;
+}
+
+/* Days are added once the plan loads, so they stagger from that moment */
+.day:nth-child(1) { animation-delay: 0.05s; }
+.day:nth-child(2) { animation-delay: 0.11s; }
+.day:nth-child(3) { animation-delay: 0.17s; }
+.day:nth-child(4) { animation-delay: 0.23s; }
+.day:nth-child(5) { animation-delay: 0.29s; }
+.day:nth-child(6) { animation-delay: 0.35s; }
+.day:nth-child(7) { animation-delay: 0.41s; }
+
+.day.today {
+    background: var(--surface-2);
+    border-color: var(--accent-line);
+}
+
+.day h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-strong);
+}
+
+.day h3 + .muted {
+    margin: -6px 0 2px;
+    font-size: 0.875rem;
+}
+
+.badge {
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-line);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.exercise {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 3px 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
+
+.exercise strong {
+    font-weight: 500;
+    color: var(--text-strong);
+}
+
+/* "3 sets x 10" sits to the right as a small tag */
+.exercise > .muted:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Exercise notes */
+.exercise > .muted:nth-child(3) {
+    grid-column: 1 / -1;
+    font-size: 0.85rem;
+    line-height: 1.45;
+}
+
+/* ---------- Log form + recent logs ---------- */
+.split {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 24px;
+    align-items: start;
+}
+
+#log-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+#logs {
+    display: flex;
+    flex-direction: column;
+    max-height: 560px;
+    overflow-y: auto;
+    margin-right: -10px;
+    padding-right: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.log {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.log:first-child {
+    padding-top: 0;
+}
+
+.log:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.log strong {
+    font-weight: 500;
+    color: var(--text-strong);
+}
+
+.log .muted {
+    font-size: 0.85rem;
+}
+
+.log .btn-danger {
+    flex: none;
+}
+
+/* ==========================================================
+   Responsive
+   ========================================================== */
+@media (max-width: 900px) {
+    .split {
+        grid-template-columns: 1fr;
+    }
+
+    .summary {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .summary-tips {
+        padding-left: 0;
+        padding-top: 24px;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+    }
+}
+
 @media (max-width: 760px) {
-    body{
-        padding: 12px;
-    }
     .page {
-        min-height: 95vh;
-        padding: 38px 24px 72px;
+        padding: 40px 12px 72px;
     }
-    .content{
+
+    .content {
         flex-direction: column;
         gap: 28px;
         min-height: 560px;
     }
-    .login-label{
+
+    .login-label {
         align-self: flex-start;
     }
-    .login-card{
+
+    .login-card {
         width: 100%;
+    }
+
+    h1 {
+        margin-bottom: 24px;
+    }
+
+    .card {
+        padding: 24px 18px;
+        border-radius: 12px;
+        gap: 18px;
+    }
+
+    .card .row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .card .row.row-3 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .topbar-inner {
+        padding: 0 16px;
+    }
+
+    .dash {
+        padding: 28px 16px 72px;
+        gap: 24px;
+    }
+
+    .summary {
+        padding: 22px 18px;
+    }
+}
+
+@media (max-width: 520px) {
+    .brand-name {
+        display: none;
+    }
+}
+
+@media (max-width: 420px) {
+    .card .checks {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        transition: none !important;
     }
 }

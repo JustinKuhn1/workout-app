@@ -3,69 +3,100 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
   <title>Dashboard - Workout Planner</title>
-  <!-- CHANGED: was "style.css", but the file is named styles.css -->
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
-  <div class="page wide">
-    <div class="header">
-      <h1>Your weekly plan</h1>
-      <div>
-        <button type="button" class="btn btn-small btn-secondary" id="regenerate-button">Regenerate plan</button>
-        <button type="button" class="btn btn-small btn-secondary" id="logout-button">Log out</button>
+<body class="dashboard">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6.5 6.5v11" />
+            <path d="M17.5 6.5v11" />
+            <path d="M3.5 9v6" />
+            <path d="M20.5 9v6" />
+            <path d="M6.5 12h11" />
+          </svg>
+        </span>
+        <span class="brand-name">Workout Planner</span>
       </div>
+      <div class="topbar-actions">
+        <button type="button" class="btn btn-small btn-secondary" id="regenerate-button">Regenerate plan</button>
+        <button type="button" class="btn btn-small btn-ghost" id="logout-button">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="dash">
+    <div class="dash-head">
+      <h1>Your weekly plan</h1>
+      <p>Today is highlighted. Log each session below to track your progress.</p>
     </div>
 
     <p class="error" id="error" hidden></p>
 
-    <div class="card summary">
-      <p id="summary"></p>
-      <ul id="tips"></ul>
-    </div>
+    <section class="card summary">
+      <div class="summary-main">
+        <h2>Overview</h2>
+        <p id="summary"></p>
+      </div>
+      <div class="summary-tips">
+        <h3>Tips</h3>
+        <ul id="tips"></ul>
+      </div>
+    </section>
 
-    <div class="days" id="days"></div>
+    <section class="days-section">
+      <div class="section-head">
+        <h2>This week</h2>
+      </div>
+      <div class="days" id="days"></div>
+    </section>
 
-    <div class="card">
-      <h2>Log a workout</h2>
-      <form id="log-form">
-        <div class="field">
-          <label for="exercise">Exercise</label>
-          <!-- The datalist suggests exercises from the plan, but any text is allowed. -->
-          <input type="text" id="exercise" name="exercise" list="exercise-list" required />
-          <datalist id="exercise-list"></datalist>
-        </div>
-        <div class="field">
-          <label for="date">Date</label>
-          <input type="date" id="date" name="date" required />
-        </div>
-        <div class="row">
+    <div class="split">
+      <section class="card">
+        <h2>Log a workout</h2>
+        <form id="log-form">
           <div class="field">
-            <label for="sets">Sets</label>
-            <input type="number" id="sets" name="sets" min="1" />
+            <label for="exercise">Exercise</label>
+            <!-- The datalist suggests exercises from the plan, but any text is allowed. -->
+            <input type="text" id="exercise" name="exercise" list="exercise-list" required />
+            <datalist id="exercise-list"></datalist>
           </div>
           <div class="field">
-            <label for="reps">Reps</label>
-            <input type="number" id="reps" name="reps" min="1" />
+            <label for="date">Date</label>
+            <input type="date" id="date" name="date" required />
+          </div>
+          <div class="row row-3">
+            <div class="field">
+              <label for="sets">Sets</label>
+              <input type="number" id="sets" name="sets" min="1" />
+            </div>
+            <div class="field">
+              <label for="reps">Reps</label>
+              <input type="number" id="reps" name="reps" min="1" />
+            </div>
+            <div class="field">
+              <label for="weight">Weight (lbs)</label>
+              <input type="number" id="weight" name="weight" min="0" step="0.5" />
+            </div>
           </div>
           <div class="field">
-            <label for="weight">Weight (lbs)</label>
-            <input type="number" id="weight" name="weight" min="0" step="0.5" />
+            <label for="notes">Notes</label>
+            <input type="text" id="notes" name="notes" />
           </div>
-        </div>
-        <div class="field">
-          <label for="notes">Notes</label>
-          <input type="text" id="notes" name="notes" />
-        </div>
-        <button type="submit" class="btn">Add to log</button>
-      </form>
-    </div>
+          <button type="submit" class="btn">Add to log</button>
+        </form>
+      </section>
 
-    <div class="card">
-      <h2>Recent logs</h2>
-      <div id="logs"></div>
+      <section class="card">
+        <h2>Recent logs</h2>
+        <div id="logs"></div>
+      </section>
     </div>
-  </div>
+  </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
