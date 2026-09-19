@@ -40,6 +40,10 @@ async function generateAndSavePlan(userId, answers) {
 
     if (!response.ok) throw new Error("The plan API returned " + response.status);
 
+    // CHANGED: "plan" was used in the upsert below but never defined, so this threw a ReferenceError
+    // and nothing was ever saved to the profiles table.
+    const plan = await response.json();
+
     const {error} = await db
         .from("profiles")
         .upsert({id: userId, answers, plan, updated_at: new Date().toISOString()});

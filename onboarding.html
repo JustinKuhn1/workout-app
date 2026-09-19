@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Details - Workout Planner</title>
+  <!-- CHANGED: was "style.css", but the file is named styles.css -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page">
+    <h1>Tell us about you</h1>
+
+    <form id="questionnaire" class="card">
+      <div class="field">
+        <label for="goal">Goal</label>
+        <select id="goal" name="goal" required>
+          <option value="">Choose...</option>
+          <option>lose fat</option>
+          <option>build muscle</option>
+          <option>get stronger</option>
+          <option>general fitness</option>
+          <option>improve endurance</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="experience">Experience</label>
+        <select id="experience" name="experience" required>
+          <option value="">Choose...</option>
+          <option>beginner</option>
+          <option>intermediate</option>
+          <option>advanced</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="daysPerWeek">Days per week</label>
+        <select id="daysPerWeek" name="daysPerWeek" required>
+          <option value="">Choose...</option>
+          <option>2</option>
+          <option>3</option>
+          <option>4</option>
+          <option>5</option>
+          <option>6</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="sessionMinutes">Minutes per session</label>
+        <select id="sessionMinutes" name="sessionMinutes" required>
+          <option value="">Choose...</option>
+          <option>20</option>
+          <option>30</option>
+          <option>45</option>
+          <option>60</option>
+          <option>90</option>
+        </select>
+      </div>
+
+      <div class="field checks">
+        <label>Equipment</label>
+        <label><input type="checkbox" name="equipment" value="bodyweight only" /> Bodyweight only</label>
+        <label><input type="checkbox" name="equipment" value="dumbbells" /> Dumbbells</label>
+        <label><input type="checkbox" name="equipment" value="full gym" /> Full gym</label>
+        <label><input type="checkbox" name="equipment" value="resistance bands" /> Resistance bands</label>
+      </div>
+
+      <div class="field">
+        <label for="injuries">Injuries (optional)</label>
+        <textarea id="injuries" name="injuries" placeholder="e.g. sore left knee"></textarea>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="age">Age</label>
+          <input type="number" id="age" name="age" min="10" max="100" />
+        </div>
+        <div class="field">
+          <label for="heightFeet">Height (ft)</label>
+          <input type="number" id="heightFeet" name="heightFeet" min="3" max="8" />
+        </div>
+        <div class="field">
+          <label for="heightInches">Height (in)</label>
+          <input type="number" id="heightInches" name="heightInches" min="0" max="11" />
+        </div>
+        <div class="field">
+          <label for="weightLbs">Weight (lbs)</label>
+          <input type="number" id="weightLbs" name="weightLbs" min="60" max="700" />
+        </div>
+      </div>
+
+      <p class="error" id="error" hidden></p>
+      <button type="submit" class="btn" id="submit-button">Generate my plan</button>
+    </form>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const form = document.getElementById("questionnaire");
+    const errorEl = document.getElementById("error");
+    const button = document.getElementById("submit-button");
+
+    requireSession(); // redirects to the login page if not logged in
+
+    // Turns the form fields into the answers object that is saved and sent to Gemini.
+    function readAnswers() {
+      const data = new FormData(form);
+      // Age, height and weight are optional: an empty box becomes null (a real 0 is kept).
+      const optionalNumber = (name) => (data.get(name) === "" ? null : Number(data.get(name)));
+
+      return {
+        goal: data.get("goal"),
+        experience: data.get("experience"),
+        daysPerWeek: Number(data.get("daysPerWeek")),
+        sessionMinutes: Number(data.get("sessionMinutes")),
+        equipment: data.getAll("equipment"),
+        injuries: data.get("injuries").trim(),
+        age: optionalNumber("age"),
+        heightFeet: optionalNumber("heightFeet"),
+        heightInches: optionalNumber("heightInches"),
+        weightLbs: optionalNumber("weightLbs"),
+      };
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      showError(errorEl);
+
+      const answers = readAnswers();
+      if (answers.equipment.length === 0) {
+        showError(errorEl, "Pick at least one type of equipment.");
+        return;
+      }
+
+      // Disable the button so the plan can't be requested twice while Gemini is working.
+      button.disabled = true;
+      button.textContent = "Generating your plan (this can take a few seconds)...";
+
+      try {
+        const session = await requireSession();
+        await generateAndSavePlan(session.user.id, answers);
+        window.location.href = "dashboard.html";
+      } catch (err) {
+        console.error(err);
+        showError(errorEl, "Something went wrong while creating your plan. Please try again.");
+        button.disabled = false;
+        button.textContent = "Try again";
+      }
+    });
+  </script>
+</body>
+</html>

@@ -62,7 +62,10 @@
 
         //Returning users will go to their dashboard and new users go to the questionnaire.
         async function goToNextPage(userId) {
-            const { data } = await db.from("profiles").select("plan").eq("id", userId).maybeSingle();
+            const { data, error } = await db.from("profiles").select("plan").eq("id", userId).maybeSingle();
+            // CHANGED: errors were silently ignored, so a missing table/bad policy just looked like "new user".
+            // Now they show in the browser console (F12) while still falling back to onboarding.
+            if (error) console.error("Could not read profile:", error);
             window.location.href = data && data.plan ? "dashboard.html" : "onboarding.html";
         }
 

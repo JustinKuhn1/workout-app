@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard - Workout Planner</title>
+  <!-- CHANGED: was "style.css", but the file is named styles.css -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page wide">
+    <div class="header">
+      <h1>Your weekly plan</h1>
+      <div>
+        <button type="button" class="btn btn-small btn-secondary" id="regenerate-button">Regenerate plan</button>
+        <button type="button" class="btn btn-small btn-secondary" id="logout-button">Log out</button>
+      </div>
+    </div>
+
+    <p class="error" id="error" hidden></p>
+
+    <div class="card summary">
+      <p id="summary"></p>
+      <ul id="tips"></ul>
+    </div>
+
+    <div class="days" id="days"></div>
+
+    <div class="card">
+      <h2>Log a workout</h2>
+      <form id="log-form">
+        <div class="field">
+          <label for="exercise">Exercise</label>
+          <!-- The datalist suggests exercises from the plan, but any text is allowed. -->
+          <input type="text" id="exercise" name="exercise" list="exercise-list" required />
+          <datalist id="exercise-list"></datalist>
+        </div>
+        <div class="field">
+          <label for="date">Date</label>
+          <input type="date" id="date" name="date" required />
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="sets">Sets</label>
+            <input type="number" id="sets" name="sets" min="1" />
+          </div>
+          <div class="field">
+            <label for="reps">Reps</label>
+            <input type="number" id="reps" name="reps" min="1" />
+          </div>
+          <div class="field">
+            <label for="weight">Weight (lbs)</label>
+            <input type="number" id="weight" name="weight" min="0" step="0.5" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="notes">Notes</label>
+          <input type="text" id="notes" name="notes" />
+        </div>
+        <button type="submit" class="btn">Add to log</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Recent logs</h2>
+      <div id="logs"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const errorEl = document.getElementById("error");
+    const logForm = document.getElementById("log-form");
+    let userId;
+    let answers; // the saved questionnaire answers, reused by "Regenerate plan"
+
+    // ---------- Page setup ----------
+
+    // Runs an async action. If it fails, shows a friendly message instead of crashing.
+    async function run(action, failMessage) {
+      showError(errorEl);
+      try {
+        await action();
+      } catch (err) {
+        console.error(err);
+        showError(errorEl, failMessage);
+      }
+    }
+
+    // The date box starts on today. Setting defaultValue means form.reset() keeps it.
+    document.getElementById("date").defaultValue = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
+
+    document.getElementById("logout-button").addEventListener("click", logOut);
+
+    run(async () => {
+      const session = await requireSession();
+      if (!session) return;
+      userId = session.user.id;
+      await showPlan();
+      await showLogs();
+    }, "Could not load your data. Please refresh the page.");
+
+    // ---------- Weekly plan ----------
+
+    async function showPlan() {
+      const { data: profile, error } = await db
+        .from("profiles")
+        .select("answers, plan")
+        .eq("id", userId)
+        .maybeSingle();
+      if (error) throw error;
+
+      // No saved plan yet: send the user to the questionnaire.
+      if (!profile || !profile.plan) {
+        window.location.href = "onboarding.html";
+        return;
+      }
+
+      answers = profile.answers;
+      renderPlan(profile.plan);
+    }
+
+    function renderPlan(plan) {
+      document.getElementById("summary").textContent = plan.summary;
+
+      const tips = (plan.tips || []).map((tip) => el("li", "", tip));
+      document.getElementById("tips").replaceChildren(...tips);
+
+      const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+      const days = plan.days.map((day) => renderDay(day, day.day.toLowerCase() === today.toLowerCase()));
+      document.getElementById("days").replaceChildren(...days);
+
+      // Suggest every exercise in the plan in the log form.
+      const names = new Set(plan.days.flatMap((day) => day.exercises.map((exercise) => exercise.name)));
+      const options = [...names].map((name) => {
+        const option = el("option");
+        option.value = name;
+        return option;
+      });
+      document.getElementById("exercise-list").replaceChildren(...options);
+    }
+
+    function renderDay(day, isToday) {
+      const card = el("div", isToday ? "day today" : "day");
+
+      const title = el("h3", "", day.day);
+      if (isToday) title.append(" ", el("span", "badge", "Today"));
+      card.append(title, el("p", "muted", day.focus));
+
+      for (const exercise of day.exercises) {
+        const item = el("div", "exercise");
+        item.append(el("strong", "", exercise.name), el("div", "muted", `${exercise.sets} sets x ${exercise.reps}`));
+        if (exercise.notes) item.append(el("div", "muted", exercise.notes));
+        card.append(item);
+      }
+      return card;
+    }
+
+    document.getElementById("regenerate-button").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = "Regenerating...";
+
+      await run(async () => {
+        await generateAndSavePlan(userId, answers);
+        await showPlan();
+      }, "Could not regenerate your plan. Please try again.");
+
+      button.disabled = false;
+      button.textContent = "Regenerate plan";
+    });
+
+    // ---------- Workout log ----------
+
+    logForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const data = new FormData(logForm);
+
+      run(async () => {
+        const { error } = await db.from("workout_logs").insert({
+          user_id: userId,
+          logged_on: data.get("date"),
+          exercise: data.get("exercise").trim(),
+          sets: Number(data.get("sets")) || null,
+          reps: Number(data.get("reps")) || null,
+          weight: Number(data.get("weight")) || null,
+          notes: data.get("notes").trim() || null,
+        });
+        if (error) throw error;
+
+        logForm.reset();
+        await showLogs();
+      }, "Could not save your workout. Please try again.");
+    });
+
+    async function showLogs() {
+      // Row Level Security means this only ever returns the current user's logs.
+      const { data: logs, error } = await db
+        .from("workout_logs")
+        .select("*")
+        .order("logged_on", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+
+      const rows = logs.map(renderLog);
+      if (rows.length === 0) rows.push(el("p", "muted", "No workouts logged yet."));
+      document.getElementById("logs").replaceChildren(...rows);
+    }
+
+    function renderLog(log) {
+      const details = [
+        log.logged_on,
+        log.sets ? `${log.sets} sets` : "",
+        log.reps ? `${log.reps} reps` : "",
+        log.weight ? `${log.weight} lbs` : "",
+      ].filter(Boolean).join(" | ");
+
+      const text = el("div");
+      text.append(el("strong", "", log.exercise), el("div", "muted", details));
+      if (log.notes) text.append(el("div", "muted", log.notes));
+
+      const deleteButton = el("button", "btn btn-small btn-danger", "Delete");
+      deleteButton.type = "button";
+      deleteButton.addEventListener("click", () => {
+        run(async () => {
+          const { error } = await db.from("workout_logs").delete().eq("id", log.id);
+          if (error) throw error;
+          await showLogs();
+        }, "Could not delete that log. Please try again.");
+      });
+
+      const row = el("div", "log");
+      row.append(text, deleteButton);
+      return row;
+    }
+  </script>
+</body>
+</html>
