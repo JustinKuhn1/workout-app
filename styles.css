@@ -808,7 +808,20 @@ input[type="checkbox"]:focus-visible {
     line-height: 1.45;
 }
 
-/* ---------- Log form + recent logs ---------- */
+/* CHANGED: a logged exercise can have no sets, reps or weight at all (a run with just a note,
+   say). Hide the tag rather than drawing an empty one; the notes rule above still matches,
+   because :nth-child counts elements whether or not they are displayed. */
+.exercise > .muted:nth-child(2):empty {
+    display: none;
+}
+
+/* CHANGED: "Track this workout" at the foot of a day card, which opens the workout dialog
+   already filled in with that day's exercises. */
+.day > .btn {
+    margin-top: 4px;
+}
+
+/* ---------- Log form + exercise rows ---------- */
 /* CHANGED: removed .split (the old two-column layout). Each now sits on its own tab. */
 #log-form {
     display: flex;
@@ -816,9 +829,55 @@ input[type="checkbox"]:focus-visible {
     gap: 16px;
 }
 
+/* CHANGED: new. One editable exercise, inside the log form or inside the workout dialog.
+   Both build their rows with the same script, so both land on these rules. */
+.exercise-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.exercise-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    animation: rise 0.25s var(--ease) both;
+}
+
+/* The name fills the row; Remove sits beside it, lined up with the input rather than the label */
+.exercise-row-head {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.exercise-row-head .field {
+    flex: 1;
+    min-width: 0;
+}
+
+.exercise-row-head .btn-danger {
+    flex: none;
+    min-height: 44px;
+}
+
+/* "Plan: 3 sets x 8-12" under an exercise carried over from the weekly plan */
+.exercise-row-hint {
+    margin: -4px 0 0;
+    font-size: 0.85rem;
+}
+
+/* ---------- Recent workouts ---------- */
+/* CHANGED: logs that share a date are one workout, shown as a single card with Edit and Delete,
+   so .log (one row per exercise, each with its own Delete) is gone. */
 #logs {
     display: flex;
     flex-direction: column;
+    gap: 16px;
     max-height: 560px;
     overflow-y: auto;
     margin-right: -10px;
@@ -827,42 +886,52 @@ input[type="checkbox"]:focus-visible {
     scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
 
-.log {
+.workout {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    padding: 18px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    animation: fade-in 0.4s ease both;
+}
+
+.workout-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    padding: 14px 0;
-    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
-.log:first-child {
-    padding-top: 0;
-}
-
-.log:last-child {
-    border-bottom: 0;
-    padding-bottom: 0;
-}
-
-.log strong {
-    font-weight: 500;
+.workout-head h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
     color: var(--text-strong);
 }
 
-.log .muted {
-    font-size: 0.85rem;
-}
-
-.log .btn-danger {
+.workout-actions {
+    display: flex;
     flex: none;
+    gap: 8px;
 }
 
 /* ==========================================================
    Dashboard: tabs
    CHANGED: new section. Styled by role / aria-selected, so no new classes or ids.
    ========================================================== */
+/* CHANGED: the bar sticks under the top bar (64px tall) so the tabs stay reachable while a long
+   panel scrolls. It needs its own background, or the panel would show through; z-index stays below
+   the top bar's 10 so it slides underneath rather than over it. */
 [role="tablist"] {
+    position: sticky;
+    top: 64px;
+    z-index: 5;
+    background: var(--bg);
+    padding-top: 8px;
     display: flex;
     gap: 4px;
     border-bottom: 1px solid var(--line);
@@ -955,12 +1024,80 @@ dialog li .btn {
 }
 
 /* ==========================================================
+   Dashboard: workout dialog
+   CHANGED: new section. Like the picker, it is also class="card", so the surface, border and
+   input styling come from there; these rules only handle the dialog-specific bits.
+   ========================================================== */
+#workout-dialog {
+    width: min(560px, calc(100% - 32px));
+    max-height: min(760px, calc(100vh - 48px));
+}
+
+/* Only the exercises scroll: the title above and the buttons below stay put */
+#workout-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+#workout-note {
+    margin: -12px 0 0;
+    font-size: 0.9rem;
+}
+
+.dialog-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.dialog-actions .btn {
+    margin-top: 0;
+}
+
+/* ==========================================================
+   Questionnaire: close button
+   CHANGED: new section. Fixed to the corner, so it never shifts the page layout underneath.
+   ========================================================== */
+.page-close {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 20;
+    width: 40px;
+    height: 40px;
+    min-height: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--surface);
+    border-color: var(--line);
+    color: var(--muted);
+    animation: fade-in 0.6s ease both;
+}
+
+.page-close:hover:not(:disabled) {
+    background: var(--surface-2);
+    border-color: var(--line-strong);
+    color: var(--text-strong);
+}
+
+.page-close svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* ==========================================================
    Responsive
    ========================================================== */
 /* CHANGED: removed the 900px block. It only re-stacked .split and the tips column, which no longer exist. */
 @media (max-width: 760px) {
     .page {
-        padding: 40px 12px 72px;
+        padding: 64px 12px 72px;
     }
 
     .content {
@@ -1027,5 +1164,33 @@ dialog li .btn {
     *::after {
         animation: none !important;
         transition: none !important;
+    }
+}
+
+/* CHANGED: new. Phone sizing for the pieces added above; kept separate from the block at the top
+   of this section so the original responsive rules stay as they were. */
+@media (max-width: 760px) {
+    .exercise-row {
+        padding: 14px;
+    }
+
+    .workout {
+        padding: 16px 14px;
+    }
+
+    #workout-dialog {
+        width: calc(100% - 20px);
+        max-height: calc(100vh - 24px);
+        padding: 20px 18px;
+    }
+
+    /* Save first, where the thumb is */
+    .dialog-actions {
+        flex-direction: column-reverse;
+    }
+
+    .page-close {
+        top: 12px;
+        right: 12px;
     }
 }

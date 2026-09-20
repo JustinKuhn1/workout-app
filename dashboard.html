@@ -32,8 +32,8 @@
   <main class="dash">
     <div class="dash-head">
       <h1>Your weekly plan</h1>
-      <!-- CHANGED: "below" no longer fits now that logging lives in its own tab. -->
-      <p>Today is highlighted. Use the Log a workout tab to track your progress.</p>
+      <!-- CHANGED: mention tracking a planned day, now that each day card can be logged directly. -->
+      <p>Today is highlighted. Track a planned day from its card, or log anything else from the Log a workout tab.</p>
     </div>
 
     <p class="error" id="error" hidden></p>
@@ -75,36 +75,18 @@
     <div role="tabpanel" data-tab="log" hidden>
       <section class="card">
         <h2>Log a workout</h2>
+        <!-- CHANGED: a workout is a list of exercises now, not a single one. Everything saved under
+             one date is one workout, so adding to a date you already logged extends that workout. -->
+        <p class="muted">Add every exercise you did. Everything saved under one date makes up that day's workout.</p>
         <form id="log-form">
-          <div class="field">
-            <label for="exercise">Exercise</label>
-            <!-- CHANGED: the datalist is replaced by the picker dialog at the bottom of the page.
-                 autocomplete="off" stops the browser's own dropdown from showing on top of it. -->
-            <input type="text" id="exercise" name="exercise" autocomplete="off" required />
-          </div>
           <div class="field">
             <label for="date">Date</label>
             <input type="date" id="date" name="date" required />
           </div>
-          <div class="row row-3">
-            <div class="field">
-              <label for="sets">Sets</label>
-              <input type="number" id="sets" name="sets" min="1" />
-            </div>
-            <div class="field">
-              <label for="reps">Reps</label>
-              <input type="number" id="reps" name="reps" min="1" />
-            </div>
-            <div class="field">
-              <label for="weight">Weight (lbs)</label>
-              <input type="number" id="weight" name="weight" min="0" step="0.5" />
-            </div>
-          </div>
-          <div class="field">
-            <label for="notes">Notes</label>
-            <input type="text" id="notes" name="notes" />
-          </div>
-          <button type="submit" class="btn">Add to log</button>
+          <!-- The rows are built by the script, so the same code fills this list and the workout dialog. -->
+          <div class="exercise-rows" id="log-exercises"></div>
+          <button type="button" class="btn btn-secondary" id="log-add">Add another exercise</button>
+          <button type="submit" class="btn" id="log-save">Save workout</button>
         </form>
       </section>
     </div>
@@ -118,16 +100,39 @@
     </div>
   </main>
 
-  <!-- CHANGED: exercise picker. It opens when the user clicks or starts typing in the Exercise box.
-       It reuses the .card, .btn and input styles, so no new classes or ids are needed.
+  <!-- CHANGED: exercise picker. It opens when the user clicks or starts typing in an Exercise box.
+       It reuses the .card, .btn and input styles, so no new classes are needed.
        closedby="any" lets a click outside close it in browsers that support it; Esc and Cancel work everywhere. -->
-  <dialog class="card" aria-label="Choose an exercise" closedby="any">
+  <dialog class="card" id="exercise-dialog" aria-label="Choose an exercise" closedby="any">
     <h2>Choose an exercise</h2>
     <input type="text" placeholder="Search exercises..." aria-label="Search exercises" autocomplete="off" />
     <ul></ul>
     <form method="dialog">
       <button class="btn btn-secondary">Cancel</button>
     </form>
+  </dialog>
+
+  <!-- CHANGED: new. One dialog does two jobs: tracking a day straight off the weekly plan, and
+       editing a workout that was already saved. Both are the same thing once it is open - a date
+       and a list of exercises - so they share the markup, the rows and the save button. -->
+  <dialog class="card" id="workout-dialog" aria-labelledby="workout-title">
+    <h2 id="workout-title">Track this workout</h2>
+    <p class="muted" id="workout-note" hidden></p>
+    <form id="workout-form">
+      <div class="field">
+        <label for="workout-date">Date</label>
+        <input type="date" id="workout-date" required />
+      </div>
+      <div class="exercise-rows" id="workout-exercises"></div>
+      <button type="button" class="btn btn-secondary" id="workout-add">Add another exercise</button>
+    </form>
+    <p class="error" id="workout-error" hidden></p>
+    <!-- The buttons sit outside the form so they stay in view while a long list of exercises scrolls.
+         form="workout-form" keeps Save working as the form's submit button from out here. -->
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" id="workout-cancel">Cancel</button>
+      <button type="submit" class="btn" id="workout-save" form="workout-form">Save workout</button>
+    </div>
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -138,23 +143,28 @@
     const logForm = document.getElementById("log-form");
     let userId;
     let answers; // the saved questionnaire answers, reused by "Regenerate plan"
-    let exerciseNames = []; // CHANGED: every exercise in the plan, listed by the exercise picker
+    let planNames = []; // every exercise in the plan, listed by the exercise picker
+    let loggedNames = []; // CHANGED: exercises logged before, also listed by the picker
 
     // ---------- Page setup ----------
 
     // Runs an async action. If it fails, shows a friendly message instead of crashing.
-    async function run(action, failMessage) {
-      showError(errorEl);
+    // CHANGED: takes the element to show the message in, so the workout dialog can report its own errors
+    // instead of writing them to the page behind it.
+    async function run(action, failMessage, target = errorEl) {
+      showError(target);
       try {
         await action();
       } catch (err) {
         console.error(err);
-        showError(errorEl, failMessage);
+        showError(target, failMessage);
       }
     }
 
+    const todayIso = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
+
     // The date box starts on today. Setting defaultValue means form.reset() keeps it.
-    document.getElementById("date").defaultValue = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
+    document.getElementById("date").defaultValue = todayIso();
 
     document.getElementById("logout-button").addEventListener("click", logOut);
 
@@ -199,7 +209,7 @@
       document.getElementById("days").replaceChildren(...days);
 
       // CHANGED: this used to fill a datalist. Now it just remembers the names for the exercise picker.
-      exerciseNames = [...new Set(plan.days.flatMap((day) => day.exercises.map((exercise) => exercise.name)))];
+      planNames = [...new Set(plan.days.flatMap((day) => day.exercises.map((exercise) => exercise.name)))];
     }
 
     function renderDay(day, isToday) {
@@ -215,7 +225,37 @@
         if (exercise.notes) item.append(el("div", "muted", exercise.notes));
         card.append(item);
       }
+
+      // CHANGED: log this day as it is written. The dialog opens already filled in with the day's
+      // exercises, so the user only adjusts what actually happened before saving.
+      if (day.exercises.length > 0) {
+        const track = el("button", "btn btn-small btn-secondary", "Track this workout");
+        track.type = "button";
+        track.addEventListener("click", () => trackPlannedDay(day));
+        card.append(track);
+      }
       return card;
+    }
+
+    function trackPlannedDay(day) {
+      openWorkoutDialog({
+        title: `Track ${day.day}`,
+        note: "Fill in what you actually did. Remove anything you skipped, and add anything else you got through.",
+        date: todayIso(),
+        entries: day.exercises.map((exercise) => ({
+          exercise: exercise.name,
+          sets: exercise.sets,
+          reps: firstNumber(exercise.reps),
+          // Keep the plan's target visible next to the boxes the user is filling in.
+          hint: [`Plan: ${exercise.sets} sets x ${exercise.reps}`, exercise.notes].filter(Boolean).join(" - "),
+        })),
+      });
+    }
+
+    // The plan writes reps as text ("8-12"), the log stores one number. "AMRAP" leaves the box empty.
+    function firstNumber(value) {
+      const found = String(value).match(/\d+/);
+      return found ? Number(found[0]) : "";
     }
 
     // Reopens the questionnaire, prefilled with the saved answers, so they can be edited and re-sent to the API.
@@ -251,17 +291,93 @@
       });
     }
 
-    // ---------- Exercise picker ----------
-    // CHANGED: new section. A dialog with a search bar that opens when the user clicks or types in the Exercise box.
+    // ---------- Exercise rows ----------
+    // CHANGED: new section. A workout is a list of exercises, so the rows are built here once and
+    // reused by the Log a workout tab and by the workout dialog.
 
-    const exerciseInput = document.getElementById("exercise");
-    const exerciseDialog = document.querySelector("dialog");
+    let fieldCount = 0;
+
+    // A labelled input wrapped in .field, matching the fields written by hand elsewhere on the page.
+    // The data-field name is how readExerciseRows() finds the value again.
+    function field(labelText, name, type, value, extra = {}) {
+      const control = document.createElement("input");
+      control.type = type;
+      control.id = `field-${++fieldCount}`;
+      control.dataset.field = name;
+      control.value = value === null || value === undefined ? "" : value;
+      Object.assign(control, extra);
+
+      const label = el("label", "", labelText);
+      label.htmlFor = control.id;
+
+      const wrapper = el("div", "field");
+      wrapper.append(label, control);
+      return wrapper;
+    }
+
+    // Adds one exercise to a list and returns the row. values.id marks a row that is already saved.
+    function addExerciseRow(list, values = {}) {
+      const row = el("div", "exercise-row");
+      if (values.id) row.dataset.logId = values.id;
+
+      const name = field("Exercise", "exercise", "text", values.exercise, {
+        autocomplete: "off",
+        placeholder: "Search or type a name",
+      });
+      const nameInput = name.querySelector("input");
+      nameInput.addEventListener("click", () => openExercisePicker(nameInput, ""));
+      nameInput.addEventListener("input", () => openExercisePicker(nameInput, nameInput.value));
+
+      const remove = el("button", "btn btn-small btn-danger", "Remove");
+      remove.type = "button";
+      remove.addEventListener("click", () => {
+        row.remove();
+        if (!list.firstElementChild) addExerciseRow(list); // a workout always keeps one row to fill in
+      });
+
+      const head = el("div", "exercise-row-head");
+      head.append(name, remove);
+      row.append(head);
+
+      if (values.hint) row.append(el("p", "muted exercise-row-hint", values.hint));
+
+      const numbers = el("div", "row row-3");
+      numbers.append(
+        field("Sets", "sets", "number", values.sets, { min: 1 }),
+        field("Reps", "reps", "number", values.reps, { min: 1 }),
+        field("Weight (lbs)", "weight", "number", values.weight, { min: 0, step: 0.5 }),
+      );
+      row.append(numbers, field("Notes", "notes", "text", values.notes));
+
+      list.append(row);
+      return row;
+    }
+
+    // Rows left blank are dropped, so "Add another exercise" can be undone by just not filling it in.
+    function readExerciseRows(list) {
+      return [...list.children]
+        .map((row) => {
+          const value = (name) => row.querySelector(`[data-field="${name}"]`).value.trim();
+          return {
+            // Ids come back as text from the dataset, so every comparison below is between strings.
+            id: row.dataset.logId || null,
+            exercise: value("exercise"),
+            sets: Number(value("sets")) || null,
+            reps: Number(value("reps")) || null,
+            weight: Number(value("weight")) || null,
+            notes: value("notes") || null,
+          };
+        })
+        .filter((entry) => entry.exercise);
+    }
+
+    // ---------- Exercise picker ----------
+    // A dialog with a search bar that opens when the user clicks or types in any Exercise box.
+
+    const exerciseDialog = document.getElementById("exercise-dialog");
     const exerciseSearch = exerciseDialog.querySelector("input");
     const exerciseChoices = exerciseDialog.querySelector("ul");
-
-    // Clicking starts with the full list. Typing carries what was typed into the search bar.
-    exerciseInput.addEventListener("click", () => openExercisePicker(""));
-    exerciseInput.addEventListener("input", () => openExercisePicker(exerciseInput.value));
+    let exerciseTarget = null; // CHANGED: the box being filled in, since there are many rows now
 
     exerciseSearch.addEventListener("input", showExerciseChoices);
     exerciseSearch.addEventListener("keydown", (event) => {
@@ -270,33 +386,37 @@
       exerciseChoices.querySelector("button")?.click(); // Enter picks the top result
     });
 
-    function openExercisePicker(search) {
+    // Clicking starts with the full list. Typing carries what was typed into the search bar.
+    function openExercisePicker(target, search) {
+      exerciseTarget = target;
       exerciseSearch.value = search;
       showExerciseChoices();
-      exerciseDialog.showModal(); // focuses the search bar; closing returns focus to the Exercise box
+      if (!exerciseDialog.open) exerciseDialog.showModal(); // focuses the search bar; closing returns focus to the box
     }
 
     function showExerciseChoices() {
       const typed = exerciseSearch.value.trim();
       const query = typed.toLowerCase();
-      const rows = exerciseNames
+      // CHANGED: offer what the user has logged before as well as what the plan lists.
+      const known = [...new Set([...planNames, ...loggedNames])];
+      const rows = known
         .filter((name) => name.toLowerCase().includes(query))
         .map((name) => exerciseChoice(name, name));
 
       // Any exercise is allowed, not just the ones in the plan, so offer what was typed too.
-      if (typed && !exerciseNames.some((name) => name.toLowerCase() === query)) {
+      if (typed && !known.some((name) => name.toLowerCase() === query)) {
         rows.push(exerciseChoice(`Use "${typed}"`, typed));
       }
       if (rows.length === 0) rows.push(el("li", "muted", "No exercises in your plan yet. Type a name to add your own."));
       exerciseChoices.replaceChildren(...rows);
     }
 
-    // One row in the list. Clicking it fills in the Exercise box and closes the picker.
+    // One row in the list. Clicking it fills in the Exercise box it was opened from and closes the picker.
     function exerciseChoice(label, value) {
       const button = el("button", "btn btn-secondary", label);
       button.type = "button";
       button.addEventListener("click", () => {
-        exerciseInput.value = value;
+        if (exerciseTarget) exerciseTarget.value = value;
         exerciseDialog.close();
       });
 
@@ -305,29 +425,151 @@
       return item;
     }
 
-    // ---------- Workout log ----------
+    // ---------- Saving workouts ----------
+    // CHANGED: new section. workout_logs holds one row per exercise, and every row sharing a date is
+    // one workout - which is also how the weekly plan reads, one workout per day. So saving a workout
+    // writes a set of rows, and editing one works out which rows to update, add and drop.
+
+    async function insertWorkout(date, entries) {
+      const { error } = await db.from("workout_logs").insert(
+        entries.map((entry) => ({
+          user_id: userId,
+          logged_on: date,
+          exercise: entry.exercise,
+          sets: entry.sets,
+          reps: entry.reps,
+          weight: entry.weight,
+          notes: entry.notes,
+        })),
+      );
+      if (error) throw error;
+    }
+
+    async function saveWorkoutEdits(date, entries, originalIds) {
+      const kept = entries.filter((entry) => entry.id);
+
+      for (const entry of kept) {
+        const { error } = await db
+          .from("workout_logs")
+          .update({
+            logged_on: date,
+            exercise: entry.exercise,
+            sets: entry.sets,
+            reps: entry.reps,
+            weight: entry.weight,
+            notes: entry.notes,
+          })
+          .eq("id", entry.id);
+        if (error) throw error;
+      }
+
+      // Rows the dialog opened with that are no longer in the list were removed by the user.
+      const dropped = originalIds.filter((id) => !kept.some((entry) => entry.id === id));
+      if (dropped.length > 0) {
+        const { error } = await db.from("workout_logs").delete().in("id", dropped);
+        if (error) throw error;
+      }
+
+      const added = entries.filter((entry) => !entry.id);
+      if (added.length > 0) await insertWorkout(date, added);
+    }
+
+    // ---------- Workout dialog ----------
+    // CHANGED: new section. Shared by "Track this workout" on a plan day and "Edit" on a saved workout.
+
+    const workoutDialog = document.getElementById("workout-dialog");
+    const workoutForm = document.getElementById("workout-form");
+    const workoutTitle = document.getElementById("workout-title");
+    const workoutNote = document.getElementById("workout-note");
+    const workoutDate = document.getElementById("workout-date");
+    const workoutRows = document.getElementById("workout-exercises");
+    const workoutError = document.getElementById("workout-error");
+    const workoutSave = document.getElementById("workout-save");
+    let editingIds = null; // the rows the dialog opened with, or null when this will be a new workout
+
+    function openWorkoutDialog({ title, note = "", date, entries, editing = false }) {
+      workoutTitle.textContent = title;
+      workoutNote.textContent = note;
+      workoutNote.hidden = !note;
+      workoutDate.value = String(date).slice(0, 10); // a date box only accepts YYYY-MM-DD
+
+      workoutRows.replaceChildren();
+      for (const entry of entries) addExerciseRow(workoutRows, entry);
+      if (!workoutRows.firstElementChild) addExerciseRow(workoutRows);
+
+      editingIds = editing ? entries.map((entry) => String(entry.id)) : null;
+      workoutSave.textContent = editing ? "Save changes" : "Save workout";
+      showError(workoutError);
+      workoutDialog.showModal();
+    }
+
+    document.getElementById("workout-add").addEventListener("click", () => {
+      addExerciseRow(workoutRows).querySelector("input").focus();
+    });
+
+    document.getElementById("workout-cancel").addEventListener("click", () => workoutDialog.close());
+
+    workoutForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const entries = readExerciseRows(workoutRows);
+      if (entries.length === 0) {
+        showError(workoutError, "Name at least one exercise before saving.");
+        return;
+      }
+
+      const date = workoutDate.value;
+      const editing = editingIds;
+      workoutSave.disabled = true;
+
+      run(async () => {
+        if (editing) await saveWorkoutEdits(date, entries, editing);
+        else await insertWorkout(date, entries);
+
+        await showLogs();
+        showTab("recent"); // the saved workout is on another tab, so jump to it
+        workoutDialog.close();
+      }, "Could not save your workout. Please try again.", workoutError)
+        .then(() => {
+          workoutSave.disabled = false;
+        });
+    });
+
+    // ---------- Log a workout ----------
+
+    const logRows = document.getElementById("log-exercises");
+    const logSave = document.getElementById("log-save");
+    addExerciseRow(logRows); // start with one empty row
+
+    document.getElementById("log-add").addEventListener("click", () => {
+      addExerciseRow(logRows).querySelector("input").focus();
+    });
 
     logForm.addEventListener("submit", (event) => {
       event.preventDefault();
-      const data = new FormData(logForm);
+
+      const entries = readExerciseRows(logRows);
+      if (entries.length === 0) {
+        showError(errorEl, "Name at least one exercise before saving.");
+        return;
+      }
+
+      const date = document.getElementById("date").value;
+      logSave.disabled = true;
 
       run(async () => {
-        const { error } = await db.from("workout_logs").insert({
-          user_id: userId,
-          logged_on: data.get("date"),
-          exercise: data.get("exercise").trim(),
-          sets: Number(data.get("sets")) || null,
-          reps: Number(data.get("reps")) || null,
-          weight: Number(data.get("weight")) || null,
-          notes: data.get("notes").trim() || null,
-        });
-        if (error) throw error;
+        await insertWorkout(date, entries);
 
-        logForm.reset();
+        logForm.reset(); // puts the date back to today
+        logRows.replaceChildren();
+        addExerciseRow(logRows);
+
         await showLogs();
-        // CHANGED: the list is on another tab now, so jump to it. Otherwise saving would look like nothing happened.
+        // The list is on another tab, so jump to it. Otherwise saving would look like nothing happened.
         showTab("recent");
-      }, "Could not save your workout. Please try again.");
+      }, "Could not save your workout. Please try again.").then(() => {
+        logSave.disabled = false;
+      });
     });
 
     async function showLogs() {
@@ -335,40 +577,90 @@
       const { data: logs, error } = await db
         .from("workout_logs")
         .select("*")
+        // CHANGED: oldest first inside a day, so a workout lists its exercises in the order they were added.
         .order("logged_on", { ascending: false })
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: true });
       if (error) throw error;
 
-      const rows = logs.map(renderLog);
-      if (rows.length === 0) rows.push(el("p", "muted", "No workouts logged yet."));
-      document.getElementById("logs").replaceChildren(...rows);
+      loggedNames = [...new Set(logs.map((log) => log.exercise))];
+
+      // CHANGED: rows that share a date are one workout, so they are grouped into a single card.
+      // Map keeps insertion order, and the rows arrive newest date first.
+      const byDate = new Map();
+      for (const log of logs) {
+        if (!byDate.has(log.logged_on)) byDate.set(log.logged_on, []);
+        byDate.get(log.logged_on).push(log);
+      }
+
+      const cards = [...byDate].map(([date, entries]) => renderWorkout(date, entries));
+      if (cards.length === 0) cards.push(el("p", "muted", "No workouts logged yet."));
+      document.getElementById("logs").replaceChildren(...cards);
     }
 
-    function renderLog(log) {
-      const details = [
-        log.logged_on,
-        log.sets ? `${log.sets} sets` : "",
-        log.reps ? `${log.reps} reps` : "",
-        log.weight ? `${log.weight} lbs` : "",
-      ].filter(Boolean).join(" | ");
+    function renderWorkout(date, entries) {
+      const card = el("div", "workout");
 
-      const text = el("div");
-      text.append(el("strong", "", log.exercise), el("div", "muted", details));
-      if (log.notes) text.append(el("div", "muted", log.notes));
+      // CHANGED: Edit reopens the whole workout in the dialog, so anything entered can be changed,
+      // removed or added to. Delete now clears the whole day rather than a single exercise.
+      const editButton = el("button", "btn btn-small btn-secondary", "Edit");
+      editButton.type = "button";
+      editButton.addEventListener("click", () => {
+        openWorkoutDialog({
+          title: "Edit workout",
+          note: "Change anything you entered, drop an exercise, or add one you forgot.",
+          date,
+          entries: entries.map((log) => ({
+            id: log.id,
+            exercise: log.exercise,
+            sets: log.sets,
+            reps: log.reps,
+            weight: log.weight,
+            notes: log.notes,
+          })),
+          editing: true,
+        });
+      });
 
       const deleteButton = el("button", "btn btn-small btn-danger", "Delete");
       deleteButton.type = "button";
       deleteButton.addEventListener("click", () => {
         run(async () => {
-          const { error } = await db.from("workout_logs").delete().eq("id", log.id);
+          const { error } = await db.from("workout_logs").delete().in("id", entries.map((log) => log.id));
           if (error) throw error;
           await showLogs();
-        }, "Could not delete that log. Please try again.");
+        }, "Could not delete that workout. Please try again.");
       });
 
-      const row = el("div", "log");
-      row.append(text, deleteButton);
-      return row;
+      const actions = el("div", "workout-actions");
+      actions.append(editButton, deleteButton);
+
+      const head = el("div", "workout-head");
+      head.append(el("h3", "", formatDate(date)), actions);
+      card.append(head);
+
+      for (const log of entries) {
+        const details = [
+          log.sets ? `${log.sets} sets` : "",
+          log.reps ? `${log.reps} reps` : "",
+          log.weight ? `${log.weight} lbs` : "",
+        ].filter(Boolean).join(" - ");
+
+        const item = el("div", "exercise");
+        item.append(el("strong", "", log.exercise), el("div", "muted", details));
+        if (log.notes) item.append(el("div", "muted", log.notes));
+        card.append(item);
+      }
+      return card;
+    }
+
+    // "2026-09-20" -> "Saturday, Sep 20". Split by hand so the date is not shifted by the time zone.
+    function formatDate(iso) {
+      const [year, month, day] = iso.slice(0, 10).split("-").map(Number);
+      return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+      });
     }
   </script>
 </body>

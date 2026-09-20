@@ -8,6 +8,16 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- CHANGED: a way out of the questionnaire. Where it leads depends on whether this account
+       already has a plan; the script below decides. It comes first in the page so it is also the
+       first thing the Tab key reaches. -->
+  <button type="button" class="page-close" id="close-button" aria-label="Close">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+      <path d="M6 6l12 12" />
+      <path d="M18 6L6 18" />
+    </svg>
+  </button>
+
   <div class="page">
     <h1>Tell us about you</h1>
 
@@ -16,11 +26,11 @@
         <label for="goal">Goal</label>
         <select id="goal" name="goal" required>
           <option value="">Choose...</option>
-          <option>lose fat</option>
-          <option>build muscle</option>
-          <option>get stronger</option>
-          <option>general fitness</option>
-          <option>improve endurance</option>
+          <option>Lose Fat</option>
+          <option>Build Muscle</option>
+          <option>Get Stronger</option>
+          <option>General Fitness</option>
+          <option>Improve Endurance</option>
         </select>
       </div>
 
@@ -28,9 +38,9 @@
         <label for="experience">Experience</label>
         <select id="experience" name="experience" required>
           <option value="">Choose...</option>
-          <option>beginner</option>
-          <option>intermediate</option>
-          <option>advanced</option>
+          <option>Beginner</option>
+          <option>Intermediate</option>
+          <option>Advanced</option>
         </select>
       </div>
 
@@ -102,8 +112,27 @@
     const form = document.getElementById("questionnaire");
     const errorEl = document.getElementById("error");
     const button = document.getElementById("submit-button");
+    const closeButton = document.getElementById("close-button");
 
-    requireSession(); // redirects to the login page if not logged in
+    // CHANGED: the profile is read once, up front. The close button needs to know whether a plan
+    // already exists and "Edit Plan" needs the saved answers, so a single read covers both.
+    const profileLoaded = loadProfile();
+
+    async function loadProfile() {
+      const session = await requireSession(); // redirects to the login page if not logged in
+      if (!session) return null;
+
+      const { data, error } = await db
+        .from("profiles")
+        .select("answers, plan")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      if (error) {
+        console.error("Could not read profile:", error);
+        return null;
+      }
+      return data;
+    }
 
     // "Edit Plan" from the dashboard opens this page with ?edit=1: refill the form with the saved answers.
     if (new URLSearchParams(window.location.search).has("edit")) {
@@ -113,23 +142,31 @@
     }
 
     async function prefillForm() {
-      try {
-        const session = await requireSession();
-        if (!session) return;
-        const { data: profile } = await db.from("profiles").select("answers").eq("id", session.user.id).maybeSingle();
-        const saved = profile && profile.answers;
-        if (!saved) return;
+      const profile = await profileLoaded;
+      const saved = profile && profile.answers;
+      if (!saved) return;
 
-        for (const name of ["goal", "experience", "daysPerWeek", "sessionMinutes", "injuries", "age", "heightFeet", "heightInches", "weightLbs"]) {
-          if (saved[name] !== null && saved[name] !== undefined) form.elements[name].value = saved[name];
-        }
-        for (const box of form.querySelectorAll('input[name="equipment"]')) {
-          box.checked = (saved.equipment || []).includes(box.value);
-        }
-      } catch (err) {
-        console.error(err);
+      for (const name of ["goal", "experience", "daysPerWeek", "sessionMinutes", "injuries", "age", "heightFeet", "heightInches", "weightLbs"]) {
+        if (saved[name] !== null && saved[name] !== undefined) form.elements[name].value = saved[name];
+      }
+      for (const box of form.querySelectorAll('input[name="equipment"]')) {
+        box.checked = (saved.equipment || []).includes(box.value);
       }
     }
+
+    // CHANGED: closing goes back to wherever the user came from. With a plan saved they were editing it,
+    // so the dashboard is still behind this page. Without one there is nothing to go back to, so they are
+    // signed out on the way to the login screen: going there while still signed in would only bounce them
+    // straight back here, since the login page sends an account with no plan to the questionnaire.
+    closeButton.addEventListener("click", async () => {
+      closeButton.disabled = true;
+      const profile = await profileLoaded;
+      if (profile && profile.plan) {
+        window.location.href = "dashboard.html";
+      } else {
+        await logOut();
+      }
+    });
 
     // Turns the form fields into the answers object that is saved and sent to Gemini.
     function readAnswers() {
@@ -173,7 +210,8 @@
         console.error(err);
         showError(errorEl, "Something went wrong while creating your plan. Please try again.");
         button.disabled = false;
-        button.textContent = "Try again";      }
+        button.textContent = "Try again";
+      }
     });
   </script>
 </body>
