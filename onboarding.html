@@ -105,6 +105,32 @@
 
     requireSession(); // redirects to the login page if not logged in
 
+    // "Edit Plan" from the dashboard opens this page with ?edit=1: refill the form with the saved answers.
+    if (new URLSearchParams(window.location.search).has("edit")) {
+      document.querySelector("h1").textContent = "Edit your plan";
+      button.textContent = "Update my plan";
+      prefillForm();
+    }
+
+    async function prefillForm() {
+      try {
+        const session = await requireSession();
+        if (!session) return;
+        const { data: profile } = await db.from("profiles").select("answers").eq("id", session.user.id).maybeSingle();
+        const saved = profile && profile.answers;
+        if (!saved) return;
+
+        for (const name of ["goal", "experience", "daysPerWeek", "sessionMinutes", "injuries", "age", "heightFeet", "heightInches", "weightLbs"]) {
+          if (saved[name] !== null && saved[name] !== undefined) form.elements[name].value = saved[name];
+        }
+        for (const box of form.querySelectorAll('input[name="equipment"]')) {
+          box.checked = (saved.equipment || []).includes(box.value);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
     // Turns the form fields into the answers object that is saved and sent to Gemini.
     function readAnswers() {
       const data = new FormData(form);
@@ -147,8 +173,7 @@
         console.error(err);
         showError(errorEl, "Something went wrong while creating your plan. Please try again.");
         button.disabled = false;
-        button.textContent = "Try again";
-      }
+        button.textContent = "Try again";      }
     });
   </script>
 </body>

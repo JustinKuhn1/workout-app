@@ -23,7 +23,7 @@
         <span class="brand-name">Workout Planner</span>
       </div>
       <div class="topbar-actions">
-        <button type="button" class="btn btn-small btn-secondary" id="regenerate-button">Regenerate plan</button>
+        <button type="button" class="btn btn-small btn-secondary" id="regenerate-button">Edit Plan</button>
         <button type="button" class="btn btn-small btn-ghost" id="logout-button">Log out</button>
       </div>
     </div>
@@ -218,18 +218,9 @@
       return card;
     }
 
-    document.getElementById("regenerate-button").addEventListener("click", async (event) => {
-      const button = event.currentTarget;
-      button.disabled = true;
-      button.textContent = "Regenerating...";
-
-      await run(async () => {
-        await generateAndSavePlan(userId, answers);
-        await showPlan();
-      }, "Could not regenerate your plan. Please try again.");
-
-      button.disabled = false;
-      button.textContent = "Regenerate plan";
+    // Reopens the questionnaire, prefilled with the saved answers, so they can be edited and re-sent to the API.
+    document.getElementById("regenerate-button").addEventListener("click", () => {
+      window.location.href = "onboarding.html?edit=1";
     });
 
     // ---------- Tabs ----------
